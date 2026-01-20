@@ -3,6 +3,4 @@ openai
 pandas
 numpy
 python-dotenv
-
-
-
+Reportlab
