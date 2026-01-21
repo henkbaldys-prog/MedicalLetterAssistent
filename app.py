@@ -25,9 +25,7 @@ body { background-color: #EAF2F8; }
 .block-container { padding-top: 2rem; }
 h1,h2,h3 { color: #0F4C81; font-family: 'Helvetica', sans-serif; }
 .stButton>button { background-color: #0F4C81; color: white; border-radius: 8px; height: 3em; font-weight: bold; }
-.stTextInput>div>div>input, .stTextArea textarea { border-radius: 8px; padding: 0.5em; }
-textarea { font-family: 'Courier New', monospace; }
-.stSelectbox>div>div>div>select { border-radius: 8px; }
+.stTextArea textarea { border-radius: 8px; padding: 0.5em; font-family: 'Courier New', monospace; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -39,10 +37,11 @@ if "generated_letter" not in st.session_state: st.session_state.generated_letter
 if "mock_mode" not in st.session_state: st.session_state.mock_mode = True
 
 # =========================
-# HEADER
+# HEADER & LOGO
 # =========================
+st.image("logo.png", width=150, caption="Medical Letter Assistant")
 st.markdown("## 🩺 Medical Letter Assistant")
-st.caption("Non-Profit Clinical Documentation Tool – anonymisierte Testversion")
+st.caption("Non-Profit Clinical Documentation Tool – Anonymized Data Only")
 st.divider()
 
 # =========================
@@ -50,12 +49,14 @@ st.divider()
 # =========================
 if not st.session_state.registered:
     st.subheader("Access Registration")
-    name = st.text_input("Your Name / Organisation", "")
-    email = st.text_input("Email Address", "")
+    st.info("⚠️ Please do NOT enter real patient-identifiable data. Only anonymized or fictional data may be used.")
+    name = st.text_input("Your Name")
+    email = st.text_input("Email Address")
+    confirm_anonymous = st.checkbox("I confirm that I only enter anonymized or fictional patient data")
     agree = st.checkbox("I agree to the Privacy Policy and Legal Notice")
     if st.button("Continue"):
-        if not name or not email or not agree:
-            st.warning("Please complete all fields.")
+        if not name or not email or not agree or not confirm_anonymous:
+            st.warning("Please complete all fields and confirm anonymized data usage.")
         else:
             st.session_state.registered = True
             st.session_state.user_name = name
@@ -64,146 +65,102 @@ if not st.session_state.registered:
     st.stop()
 
 # =========================
-# LANGUAGE
+# LANGUAGE & MOCK MODE
 # =========================
 language = st.selectbox("Language / Sprache", ["English", "Deutsch"], index=1)
-
-# =========================
-# MOCK MODE TOGGLE
-# =========================
 st.checkbox("Enable Mock Mode (offline testing)", value=True, key="mock_mode")
 
 # =========================
 # CLINICAL NOTES INPUT
 # =========================
-st.subheader("Clinical Notes (anonymized)")
-notes = st.text_area(
-    "Enter raw medical notes:",
-    height=250,
-    placeholder="Describe symptoms, observations, lab results, etc."
-)
+st.subheader("Clinical Notes (anonymized only)")
+notes = st.text_area("Enter anonymized medical notes:", height=250, placeholder="E.g., Patient presents with general symptoms...")
 
 # =========================
-# PROMPT GENERATION (LEGAL & PERFECT, ANONYMIZED)
+# LETTER TYPE
 # =========================
-def generate_prompt(notes, lang="de"):
-    # Anonymisierte Patientendaten
-    patient_age = "ca. 50 Jahre"
-    patient_sex = "männlich"
-    ward = "Innere Medizin, stationär"
-    stay_period = "Aufenthalt von 5 Tagen"
+letter_type = st.selectbox("Select Letter Type / Brief Typ", [
+    "Entlassungsbericht", "Befundbericht", "Überweisung", "Konsiliarbericht", "Sonstiges"
+])
+
+# =========================
+# PERFECT PROMPT WITH PLACEHOLDERS
+# =========================
+def generate_prompt(notes, letter_type="Entlassungsbericht", lang="de"):
+    placeholders = {
+        "clinic": "[Praxis/Klinik]",
+        "department": "[Abteilung]",
+        "doctor": "[Oberarzt / behandelnder Arzt]",
+        "date": "[Datum]",
+        "patient_name": "[Patient Name]",
+        "dob": "[Geburtsdatum]",
+        "age": "[Alter]",
+        "sex": "[Geschlecht]"
+    }
 
     if lang.lower().startswith("en"):
         return f"""
-You are a highly experienced medical documentation assistant. 
-Create a perfect, professional, fully structured discharge letter based on anonymized patient data.
-Use clear, concise, clinical language. Apply these improvements:
-•⁠  ⁠Include any provided medication names and doses (if mentioned) clearly.
-•⁠  ⁠Include follow-up instructions and recommended outpatient control.
-•⁠  ⁠Add explicit warning signs for which the patient should seek urgent care.
-•⁠  ⁠Mention relevant laboratory, imaging, or EKG findings if present, in concise structured format.
-•⁠  ⁠Ensure uniform section headers and consistent formatting.
-•⁠  ⁠Avoid redundancies and filler words; sentences must be precise and professional.
-•⁠  ⁠Formal tone, neutral, human-like style.
-•⁠  ⁠Do NOT include any real patient identifiers (names, exact DOB, addresses).
+You are a highly experienced medical documentation assistant.
+Create a professional {letter_type} with all fields anonymized.
+Do NOT include real patient or doctor data.
 
-Patient Details:
-•⁠  ⁠Age: {patient_age}
-•⁠  ⁠Sex: {patient_sex}
-•⁠  ⁠Ward: {ward}
-•⁠  ⁠Stay period: {stay_period}
+Clinic/Practice: {placeholders['clinic']}
+Department: {placeholders['department']}
+Physician: {placeholders['doctor']}
+Date: {placeholders['date']}
 
-Clinical Notes (anonymized):
+Patient Details (anonymized):
+- Name: {placeholders['patient_name']}
+- Date of Birth: {placeholders['dob']}
+- Age: {placeholders['age']}
+- Sex: {placeholders['sex']}
+
+Clinical Notes:
 {notes}
 
 Requirements:
-1.⁠ ⁠Formal header with anonymized patient details, date, and subject line.
-2.⁠ ⁠Sections: History / Presenting Complaint, Examination, Investigations / Diagnostics, Findings / Results, Treatment / Clinical Management, Discharge Status / Recommendations.
-3.⁠ ⁠All sections fully phrased in complete sentences.
-4.⁠ ⁠Professional medical terminology, readable by any clinician.
-5.⁠ ⁠No placeholders, no special characters, no asterisks, no exclamations.
-6.⁠ ⁠Produce a single, ready-to-send document.
+- The letter must be fully structured, professional, and ready for clinical use.
+- Include all relevant sections automatically depending on the selected letter type.
+- Keep only the placeholders for sensitive data (clinic, doctor, patient, date); everything else must be fully written.
+- Formal, neutral, clinical language; perfect style better than average human physician.
+- Clearly indicate that this document is anonymized and for documentation purposes only.
+- Five letter types supported: Discharge Summary, Diagnostic Report, Referral, Consultation Letter, Others.
 """
     else:
         return f"""
-Du bist ein sehr erfahrener medizinischer Dokumentationsassistent. 
-Erstelle einen perfekt strukturierten, professionellen Entlassungsbrief basierend auf anonymisierten Patientendaten.
-Nutze klare, präzise, klinische Sprache. Wende diese Verbesserungen an:
-•⁠  ⁠Füge die Medikation mit Dosierungen ein, falls vorhanden, und kennzeichne Änderungen deutlich.
-•⁠  ⁠Nenne Nachsorgetermine und ambulante Kontrollmaßnahmen.
-•⁠  ⁠Gib Warnhinweise für Symptome an, bei denen der Patient sofort ärztliche Hilfe aufsuchen sollte.
-•⁠  ⁠Erwähne relevante Laborwerte, Bildgebung oder EKG-Befunde in prägnanter Form.
-•⁠  ⁠Einheitliche Abschnittsüberschriften und konsistente Formatierung.
-•⁠  ⁠Vermeide Wiederholungen und unnötige Füllworte; Sätze müssen präzise und professionell sein.
-•⁠  ⁠Formeller, neutraler, menschlich wirkender Stil.
-•⁠  ⁠Keine echten Patientendaten verwenden (Name, genaues Geburtsdatum, Adresse).
+Du bist ein sehr erfahrener medizinischer Dokumentationsassistent.
+Erstelle einen professionellen {letter_type}, alle Felder anonymisiert.
+Keine echten Patientendaten oder Arztinfos.
+
+Praxis/Klinik: {placeholders['clinic']}
+Abteilung: {placeholders['department']}
+Arzt / Oberarzt: {placeholders['doctor']}
+Datum: {placeholders['date']}
 
 Patientendaten (anonymisiert):
-•⁠  ⁠Alter: {patient_age}
-•⁠  ⁠Geschlecht: {patient_sex}
-•⁠  ⁠Station: {ward}
-•⁠  ⁠Aufenthaltsdauer: {stay_period}
+- Name: {placeholders['patient_name']}
+- Geburtsdatum: {placeholders['dob']}
+- Alter: {placeholders['age']}
+- Geschlecht: {placeholders['sex']}
 
-Klinische Notizen (anonymisiert):
+Klinische Notizen:
 {notes}
 
 Anforderungen:
-1.⁠ ⁠Formeller Kopf mit anonymisierten Patientendaten, Datum und Betreff.
-2.⁠ ⁠Abschnitte: Anamnese / Vorstellung, Untersuchung, Diagnostik / Untersuchungen, Befunde / Ergebnisse, Therapie / Klinisches Management, Entlassungszustand / Empfehlungen.
-3.⁠ ⁠Alle Abschnitte in vollständigen Sätzen.
-4.⁠ ⁠Professionelle medizinische Sprache, für jeden Arzt lesbar.
-5.⁠ ⁠Keine Platzhalter, Sonderzeichen, Sternchen oder Ausrufezeichen.
-6.⁠ ⁠Ein fertiges, direkt versandbereites Dokument erzeugen.
+- Der Brief muss vollständig strukturiert, professionell und sofort verwendbar sein.
+- Enthält alle relevanten Abschnitte je nach gewähltem Brief-Typ.
+- Nur die Platzhalter für sensible Daten (Praxis, Arzt, Patient, Datum) bleiben; alles andere ist fertig geschrieben.
+- Formelle, neutrale, klinische Sprache; Stil besser als bei einem durchschnittlichen menschlichen Arzt.
+- Deutliche Angabe, dass dieser Brief anonymisiert und nur für Dokumentationszwecke ist.
+- Unterstützt fünf Brief-Typen: Entlassungsbericht, Befundbericht, Überweisung, Konsiliarbericht, Sonstiges.
 """
+
 # =========================
 # MOCK RESPONSE
 # =========================
-def mock_medical_letter(notes, lang):
-    now = datetime.now().strftime('%Y-%m-%d')
-    if lang.lower().startswith("en"):
-        return f"""Patient Name: Patient A
-Date: {now}
-Subject: Clinical Summary
-
-History:
-{notes or 'Patient presented with general symptoms requiring evaluation.'}
-
-Examination:
-Physical examination unremarkable. Vital signs within normal limits.
-
-Findings:
-No acute pathological findings.
-
-Treatment:
-Patient managed according to standard protocols.
-
-Discharge Status:
-Patient discharged in stable condition.
-
-Generated by Medical Letter Assistant.
-"""
-    else:
-        return f"""Patient: Patient A
-Datum: {now}
-Betreff: Arztbrief
-
-Anamnese:
-{notes or 'Patient stellte sich mit allgemeinen Symptomen vor, die eine Untersuchung erforderten.'}
-
-Untersuchung:
-Körperliche Untersuchung unauffällig. Vitalzeichen im Normbereich.
-
-Befund:
-Keine akuten pathologischen Befunde.
-
-Therapie:
-Patient unter Standardprotokollen behandelt.
-
-Entlassungszustand:
-Patient in stabilem Zustand entlassen.
-
-Erstellt mit Medical Letter Assistant.
-"""
+def mock_medical_letter(notes, letter_type="Entlassungsbericht", lang="de"):
+    # Returns the full prompt as mock "letter" for offline testing
+    return generate_prompt(notes, letter_type, lang)
 
 # =========================
 # OPENAI CLIENT
@@ -216,22 +173,22 @@ if not st.session_state.mock_mode:
     client = OpenAI(api_key=api_key)
 
 # =========================
-# GENERATE LEGAL MEDICAL LETTER
+# GENERATE MEDICAL LETTER
 # =========================
-if st.button("Generate Perfect Medical Letter", disabled=not notes.strip()):
-    with st.spinner("Generating perfect medical letter..."):
+if st.button("Generate Medical Letter", disabled=not notes.strip()):
+    with st.spinner("Generating medical letter..."):
         try:
             if st.session_state.mock_mode:
-                st.session_state.generated_letter = mock_medical_letter(notes, language)
+                st.session_state.generated_letter = mock_medical_letter(notes, letter_type, language)
             else:
-                prompt = generate_prompt(notes, language)
+                prompt = generate_prompt(notes, letter_type, language)
                 response = client.chat.completions.create(
                     model="gpt-4.1",
                     messages=[{"role": "user", "content": prompt}],
-                    max_tokens=1500
+                    max_tokens=2500
                 )
                 st.session_state.generated_letter = response.choices[0].message.content
-            st.success("Perfect medical letter generated successfully!")
+            st.success("Medical letter generated successfully!")
         except Exception as e:
             st.error(f"Error generating letter: {e}")
 
@@ -239,22 +196,36 @@ if st.button("Generate Perfect Medical Letter", disabled=not notes.strip()):
 # DISPLAY & PDF
 # =========================
 if st.session_state.generated_letter:
-    st.subheader("Medical Letter")
+    st.subheader("Generated Medical Letter")
     st.text_area("", st.session_state.generated_letter, height=400)
 
     if st.button("Download PDF"):
         with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as temp:
             c = canvas.Canvas(temp.name, pagesize=A4)
             width, height = A4
-            y = height - 80
-            c.setFont("Helvetica-Bold", 16)
-            c.drawString(40, y, "🩺 Medical Letter Assistant")
-            y -= 25
-            c.setFont("Helvetica", 12)
-            c.drawString(40, y, f"Generated by: {st.session_state.user_name}")
-            y -= 20
-            c.drawString(40, y, f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-            y -= 30
+
+            # PDF HEADER
+            c.drawImage("logo.png", 40, height - 70, width=70, preserveAspectRatio=True, mask='auto')
+            y = height - 50
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(120, y, "🩺 Medical Letter Assistant")
+            y -= 18
+
+            # Legal & Disclaimer
+            c.setFont("Helvetica", 9)
+            legal_text = (
+                "Legal Notice / Impressum: Operator: Henk Baldys | Contact: henkbaldys@icloud.com | "
+                "Non-profit project. Only anonymized or fictional data allowed.\n"
+                "Privacy Policy: No patient-identifiable data is collected or stored. All inputs are session-only. "
+                "No data is logged or tracked. Supports GDPR, HIPAA, PIPEDA, Australian Privacy Principles.\n"
+                "Medical Disclaimer: This tool is for documentation only. No medical advice, diagnosis, or treatment provided."
+            )
+            for line in legal_text.split("\n"):
+                c.drawString(40, y, line)
+                y -= 12
+            y -= 10
+
+            # BODY
             c.setFont("Helvetica", 11)
             lines = simpleSplit(st.session_state.generated_letter, "Helvetica", 11, width - 80)
             for line in lines:
@@ -263,26 +234,35 @@ if st.session_state.generated_letter:
                 if y < 40:
                     c.showPage()
                     y = height - 80
+
             c.showPage()
             c.save()
             temp.seek(0)
             st.download_button("Download PDF", temp, file_name="medical_letter.pdf", mime="application/pdf")
 
 # =========================
-# FOOTER
+# STREAMLIT FOOTER
 # =========================
 st.divider()
 with st.expander("Legal Notice / Impressum"):
     st.markdown("""
-*Operator:* Henk Baldys  
-*Contact:* henkbaldys@icloud.com  
-Non-profit project. No stored data.
+**Operator:** Henk Baldys  
+**Contact:** henkbaldys@icloud.com  
+Non-profit project. Only anonymized or fictional patient data allowed.
 """)
 with st.expander("Privacy Policy / Datenschutz"):
     st.markdown("""
-No data storage.  
-No tracking.  
-No analytics.  
-Session-only processing.
+- No patient-identifiable data is collected or stored.  
+- All inputs are processed in-session only.  
+- No data is logged, tracked, or used for AI training.  
+- Users must only enter anonymized or fictional data.  
+- Designed to support GDPR (EU), HIPAA-aligned workflows (USA), PIPEDA (Canada), and Australian Privacy principles.
+""")
+with st.expander("Medical Disclaimer"):
+    st.markdown("""
+**Disclaimer:** This tool is for documentation and writing assistance only.  
+It does NOT provide medical advice, diagnosis, or treatment recommendations.  
+All medical decisions are the responsibility of the licensed healthcare professional.  
+No physician-patient relationship is created.  
 """)
 st.caption("This tool assists in documentation only and does not provide medical advice.")
