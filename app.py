@@ -6,6 +6,193 @@ from reportlab.lib.utils import simpleSplit
 from datetime import datetime
 import tempfile
 import os
+# =========================
+# LETTER TEMPLATES
+# =========================
+
+TEMPLATE_ENTLASSUNG = """ENTLASSUNGSBERICHT
+
+Hinweis:
+Dieser Arztbrief ist anonymisiert und dient ausschließlich zu Dokumentationszwecken.
+
+Praxis/Klinik: [Praxis/Klinik]
+Abteilung: [Abteilung]
+Behandelnder Arzt: [Arzt]
+Datum: [Datum]
+
+Patientenangaben (anonymisiert):
+•⁠  ⁠Alter: {{ALTER}}
+•⁠  ⁠Geschlecht: {{GESCHLECHT}}
+
+Aufnahmegrund:
+{{MEDIZINISCH SAUBER FORMULIERT AUS DEN NOTIZEN}}
+
+Anamnese:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Klinischer Befund bei Aufnahme:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Diagnostik:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Therapie und Verlauf:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Entlassungszustand:
+Der Patient befindet sich in stabilem Allgemeinzustand ohne akute Komplikationen.
+
+Empfehlungen:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Epikrise:
+Zusammenfassend zeigte sich ein stabiler Verlauf ohne Hinweis auf behandlungsbedürftige Komplikationen.
+
+Unterschrift:
+[Arzt / Praxis]
+"""
+
+TEMPLATE_BEFUND = """BEFUNDBERICHT
+
+Hinweis:
+Dieser Bericht ist anonymisiert und dient ausschließlich zu Dokumentationszwecken.
+
+Praxis/Klinik: [Praxis/Klinik]
+Abteilung: [Abteilung]
+Arzt: [Arzt]
+Datum: [Datum]
+
+Patientenangaben (anonymisiert):
+•⁠  ⁠Alter: {{ALTER}}
+•⁠  ⁠Geschlecht: {{GESCHLECHT}}
+
+Anlass der Untersuchung:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Untersuchungsbefund:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Beurteilung:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Zusammenfassung:
+Zum Zeitpunkt der Untersuchung ergaben sich keine Hinweise auf akute pathologische Veränderungen.
+
+Empfehlung:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Unterschrift:
+[Arzt / Praxis]
+"""
+
+TEMPLATE_UEBERWEISUNG = """ÜBERWEISUNG
+
+Hinweis:
+Dieser Arztbrief ist anonymisiert und dient ausschließlich zu Dokumentationszwecken.
+
+Praxis/Klinik: [Praxis/Klinik]
+Abteilung: [Abteilung]
+Überweisender Arzt: [Arzt]
+Datum: [Datum]
+
+Patientenangaben (anonymisiert):
+•⁠  ⁠Alter: {{ALTER}}
+•⁠  ⁠Geschlecht: {{GESCHLECHT}}
+
+Überweisungsanlass:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Klinischer Befund:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Verdachtsdiagnose:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Fragestellung:
+Weiterführende fachärztliche Abklärung und ggf. ergänzende Diagnostik erbeten.
+
+Unterschrift:
+[Arzt / Praxis]
+"""
+
+TEMPLATE_KONSILIAR = """KONSILIARBERICHT
+
+Hinweis:
+Dieser Bericht ist anonymisiert und dient ausschließlich zu Dokumentationszwecken.
+
+Praxis/Klinik: [Praxis/Klinik]
+Abteilung: [Abteilung]
+Konsiliararzt: [Arzt]
+Datum: [Datum]
+
+Patientenangaben (anonymisiert):
+•⁠  ⁠Alter: {{ALTER}}
+•⁠  ⁠Geschlecht: {{GESCHLECHT}}
+
+Konsiliarischer Auftrag:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Klinischer Befund:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Beurteilung:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Empfehlung:
+Aus konsiliarischer Sicht aktuell kein Hinweis auf interventionsbedürftige Pathologie.
+
+Unterschrift:
+[Arzt / Praxis]
+"""
+
+TEMPLATE_SONSTIGES = """ÄRZTLICHER BERICHT
+
+Hinweis:
+Dieser Bericht ist anonymisiert und dient ausschließlich zu Dokumentationszwecken.
+
+Praxis/Klinik: [Praxis/Klinik]
+Abteilung: [Abteilung]
+Arzt: [Arzt]
+Datum: [Datum]
+
+Patientenangaben (anonymisiert):
+•⁠  ⁠Alter: {{ALTER}}
+•⁠  ⁠Geschlecht: {{GESCHLECHT}}
+
+Anlass:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Darstellung:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Beurteilung:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Empfehlung:
+{{AUTOMATISCH AUSFORMULIERT}}
+
+Unterschrift:
+[Arzt / Praxis]
+"""
+LETTER_TEMPLATES = {
+    "Entlassungsbericht": TEMPLATE_ENTLASSUNG,
+    "Befundbericht": TEMPLATE_BEFUND,
+    "Überweisung": TEMPLATE_UEBERWEISUNG,
+    "Konsiliarbericht": TEMPLATE_KONSILIAR,
+    "Sonstiges": TEMPLATE_SONSTIGES
+}
+
+# Funktion: Prompt generieren
+def generate_prompt(letter_type, lang="de"):
+    template = LETTER_TEMPLATES.get(letter_type, LETTER_TEMPLATES["Sonstiges"])
+    if lang.lower().startswith("en"):
+        template = template.replace("anonymisiert", "anonymized")
+    return template
+
+# Funktion: Mock letter (offline Testmodus)
+def mock_medical_letter(letter_type, lang="de"):
+    return generate_prompt(letter_type, lang)
+
 
 # =========================
 # PAGE CONFIGURATION
@@ -84,7 +271,7 @@ letter_type = st.selectbox("Select Letter Type / Brief Typ", [
 ])
 
 # =========================
-# PERFECT PROMPT WITH PLACEHOLDERS
+#m PERFECT PROMPT WITH PLACEHOLDERS
 # =========================
 def generate_prompt(notes, letter_type="Entlassungsbericht", lang="de"):
     placeholders = {
@@ -193,53 +380,92 @@ if st.button("Generate Medical Letter", disabled=not notes.strip()):
             st.error(f"Error generating letter: {e}")
 
 # =========================
-# DISPLAY & PDF
+# DISPLAY & PDF EXPORT
 # =========================
 if st.session_state.generated_letter:
     st.subheader("Generated Medical Letter")
-    st.text_area("", st.session_state.generated_letter, height=400)
+    st.text_area(
+        label="",
+        value=st.session_state.generated_letter,
+        height=400
+    )
 
     if st.button("Download PDF"):
-        with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as temp:
+        with tempfile.NamedTemporaryFile(suffix=".pdf") as temp:
             c = canvas.Canvas(temp.name, pagesize=A4)
             width, height = A4
 
+            # =========================
             # PDF HEADER
-            c.drawImage("logo.png", 40, height - 70, width=70, preserveAspectRatio=True, mask='auto')
+            # =========================
+            if os.path.exists("logo.png"):
+                c.drawImage(
+                    "logo.png",
+                    40,
+                    height - 70,
+                    width=70,
+                    preserveAspectRatio=True,
+                    mask="auto"
+                )
+
             y = height - 50
             c.setFont("Helvetica-Bold", 14)
-            c.drawString(120, y, "🩺 Medical Letter Assistant")
-            y -= 18
+            c.drawString(120, y, "Medical Letter Assistant")
+            y -= 20
 
-            # Legal & Disclaimer
+            # =========================
+            # LEGAL / DISCLAIMER
+            # =========================
             c.setFont("Helvetica", 9)
             legal_text = (
                 "Legal Notice / Impressum: Operator: Henk Baldys | Contact: henkbaldys@icloud.com | "
                 "Non-profit project. Only anonymized or fictional data allowed.\n"
                 "Privacy Policy: No patient-identifiable data is collected or stored. All inputs are session-only. "
                 "No data is logged or tracked. Supports GDPR, HIPAA, PIPEDA, Australian Privacy Principles.\n"
-                "Medical Disclaimer: This tool is for documentation only. No medical advice, diagnosis, or treatment provided."
+                "Medical Disclaimer: This tool is for documentation only. "
+                "It does NOT provide medical advice, diagnosis, or treatment."
             )
+
             for line in legal_text.split("\n"):
                 c.drawString(40, y, line)
                 y -= 12
-            y -= 10
 
+            y -= 15
+
+            # =========================
             # BODY
+            # =========================
             c.setFont("Helvetica", 11)
-            lines = simpleSplit(st.session_state.generated_letter, "Helvetica", 11, width - 80)
-            for line in lines:
+            body_lines = simpleSplit(
+                st.session_state.generated_letter,
+                "Helvetica",
+                11,
+                width - 80
+            )
+
+            for line in body_lines:
                 c.drawString(40, y, line)
                 y -= 14
                 if y < 40:
                     c.showPage()
                     y = height - 80
+                    c.setFont("Helvetica", 11)
 
             c.showPage()
             c.save()
-            temp.seek(0)
-            st.download_button("Download PDF", temp, file_name="medical_letter.pdf", mime="application/pdf")
 
+            # =========================
+            # STREAMLIT DOWNLOAD
+            # =========================
+            temp.seek(0)
+            pdf_bytes = temp.read()
+
+            st.download_button(
+                label="Download PDF",
+                data=pdf_bytes,
+                file_name="medical_letter.pdf",
+                mime="application/pdf"
+            )
 # =========================
 # STREAMLIT FOOTER
 # =========================
