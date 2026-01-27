@@ -1,3 +1,4 @@
+                                                                                         
 import streamlit as st
 from openai import OpenAI
 from reportlab.lib.pagesizes import A4
@@ -6,193 +7,133 @@ from reportlab.lib.utils import simpleSplit
 from datetime import datetime
 import tempfile
 import os
+
 # =========================
 # LETTER TEMPLATES
 # =========================
-
-TEMPLATE_ENTLASSUNG = """ENTLASSUNGSBERICHT
-
+TEMPLATES = {
+    "Entlassungsbericht": {
+        "de": """ENTLASSUNGSBERICHT
 Hinweis:
 Dieser Arztbrief ist anonymisiert und dient ausschließlich zu Dokumentationszwecken.
-
 Praxis/Klinik: [Praxis/Klinik]
 Abteilung: [Abteilung]
 Behandelnder Arzt: [Arzt]
 Datum: [Datum]
 
 Patientenangaben (anonymisiert):
-•⁠  ⁠Alter: {{ALTER}}
-•⁠  ⁠Geschlecht: {{GESCHLECHT}}
+• Alter: {{ALTER}}
+• Geschlecht: {{GESCHLECHT}}
 
 Aufnahmegrund:
-{{MEDIZINISCH SAUBER FORMULIERT AUS DEN NOTIZEN}}
-
-Anamnese:
 {{AUTOMATISCH AUSFORMULIERT}}
-
-Klinischer Befund bei Aufnahme:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Diagnostik:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Therapie und Verlauf:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Entlassungszustand:
-Der Patient befindet sich in stabilem Allgemeinzustand ohne akute Komplikationen.
-
-Empfehlungen:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Epikrise:
-Zusammenfassend zeigte sich ein stabiler Verlauf ohne Hinweis auf behandlungsbedürftige Komplikationen.
-
+...
 Unterschrift:
 [Arzt / Praxis]
+""",
+        "en": """DISCHARGE SUMMARY
+Note:
+This medical letter is anonymized and for documentation purposes only.
+Clinic/Practice: [Clinic/Practice]
+Department: [Department]
+Attending Physician: [Physician]
+Date: [Date]
+
+Patient Details (anonymized):
+• Age: {{AGE}}
+• Sex: {{SEX}}
+
+Reason for Admission:
+{{AUTOMATICALLY FORMULATED}}
+...
+Signature:
+[Physician / Clinic]
 """
-
-TEMPLATE_BEFUND = """BEFUNDBERICHT
-
+    },
+    "Befundbericht": {
+        "de": """BEFUNDBERICHT
 Hinweis:
 Dieser Bericht ist anonymisiert und dient ausschließlich zu Dokumentationszwecken.
-
-Praxis/Klinik: [Praxis/Klinik]
-Abteilung: [Abteilung]
-Arzt: [Arzt]
-Datum: [Datum]
-
-Patientenangaben (anonymisiert):
-•⁠  ⁠Alter: {{ALTER}}
-•⁠  ⁠Geschlecht: {{GESCHLECHT}}
-
-Anlass der Untersuchung:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Untersuchungsbefund:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Beurteilung:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Zusammenfassung:
-Zum Zeitpunkt der Untersuchung ergaben sich keine Hinweise auf akute pathologische Veränderungen.
-
-Empfehlung:
-{{AUTOMATISCH AUSFORMULIERT}}
-
+...
 Unterschrift:
 [Arzt / Praxis]
+""",
+        "en": """DIAGNOSTIC REPORT
+Note:
+This report is anonymized and for documentation purposes only.
+...
+Signature:
+[Physician / Clinic]
 """
-
-TEMPLATE_UEBERWEISUNG = """ÜBERWEISUNG
-
+    },
+    "Überweisung": {
+        "de": """ÜBERWEISUNG
 Hinweis:
 Dieser Arztbrief ist anonymisiert und dient ausschließlich zu Dokumentationszwecken.
-
-Praxis/Klinik: [Praxis/Klinik]
-Abteilung: [Abteilung]
-Überweisender Arzt: [Arzt]
-Datum: [Datum]
-
-Patientenangaben (anonymisiert):
-•⁠  ⁠Alter: {{ALTER}}
-•⁠  ⁠Geschlecht: {{GESCHLECHT}}
-
-Überweisungsanlass:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Klinischer Befund:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Verdachtsdiagnose:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Fragestellung:
-Weiterführende fachärztliche Abklärung und ggf. ergänzende Diagnostik erbeten.
-
+...
 Unterschrift:
 [Arzt / Praxis]
+""",
+        "en": """REFERRAL
+Note:
+This referral is anonymized and for documentation purposes only.
+...
+Signature:
+[Physician / Clinic]
 """
-
-TEMPLATE_KONSILIAR = """KONSILIARBERICHT
-
+    },
+    "Konsiliarbericht": {
+        "de": """KONSILIARBERICHT
 Hinweis:
 Dieser Bericht ist anonymisiert und dient ausschließlich zu Dokumentationszwecken.
-
-Praxis/Klinik: [Praxis/Klinik]
-Abteilung: [Abteilung]
-Konsiliararzt: [Arzt]
-Datum: [Datum]
-
-Patientenangaben (anonymisiert):
-•⁠  ⁠Alter: {{ALTER}}
-•⁠  ⁠Geschlecht: {{GESCHLECHT}}
-
-Konsiliarischer Auftrag:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Klinischer Befund:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Beurteilung:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Empfehlung:
-Aus konsiliarischer Sicht aktuell kein Hinweis auf interventionsbedürftige Pathologie.
-
+...
 Unterschrift:
 [Arzt / Praxis]
+""",
+        "en": """CONSULTATION LETTER
+Note:
+This consultation letter is anonymized and for documentation purposes only.
+...
+Signature:
+[Physician / Clinic]
 """
-
-TEMPLATE_SONSTIGES = """ÄRZTLICHER BERICHT
-
+    },
+    "Sonstiges": {
+        "de": """ÄRZTLICHER BERICHT
 Hinweis:
 Dieser Bericht ist anonymisiert und dient ausschließlich zu Dokumentationszwecken.
-
-Praxis/Klinik: [Praxis/Klinik]
-Abteilung: [Abteilung]
-Arzt: [Arzt]
-Datum: [Datum]
-
-Patientenangaben (anonymisiert):
-•⁠  ⁠Alter: {{ALTER}}
-•⁠  ⁠Geschlecht: {{GESCHLECHT}}
-
-Anlass:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Darstellung:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Beurteilung:
-{{AUTOMATISCH AUSFORMULIERT}}
-
-Empfehlung:
-{{AUTOMATISCH AUSFORMULIERT}}
-
+...
 Unterschrift:
 [Arzt / Praxis]
+""",
+        "en": """OTHER MEDICAL REPORT
+Note:
+This report is anonymized and for documentation purposes only.
+...
+Signature:
+[Physician / Clinic]
 """
-LETTER_TEMPLATES = {
-    "Entlassungsbericht": TEMPLATE_ENTLASSUNG,
-    "Befundbericht": TEMPLATE_BEFUND,
-    "Überweisung": TEMPLATE_UEBERWEISUNG,
-    "Konsiliarbericht": TEMPLATE_KONSILIAR,
-    "Sonstiges": TEMPLATE_SONSTIGES
+    }
 }
 
-# Funktion: Prompt generieren
-def generate_prompt(letter_type, lang="de"):
-    template = LETTER_TEMPLATES.get(letter_type, LETTER_TEMPLATES["Sonstiges"])
-    if lang.lower().startswith("en"):
-        template = template.replace("anonymisiert", "anonymized")
-    return template
+# Mapping für Brieftypen im Dropdown
+LETTER_TYPE_NAMES = {
+    "de": ["Entlassungsbericht", "Befundbericht", "Überweisung", "Konsiliarbericht", "Sonstiges"],
+    "en": ["Discharge Summary", "Diagnostic Report", "Referral", "Consultation Letter", "Others"]
+}
 
-# Funktion: Mock letter (offline Testmodus)
-def mock_medical_letter(letter_type, lang="de"):
-    return generate_prompt(letter_type, lang)
-
+LETTER_TYPE_KEY = {
+    "Discharge Summary": "Entlassungsbericht",
+    "Diagnostic Report": "Befundbericht",
+    "Referral": "Überweisung",
+    "Consultation Letter": "Konsiliarbericht",
+    "Others": "Sonstiges",
+    "Entlassungsbericht": "Entlassungsbericht",
+    "Befundbericht": "Befundbericht",
+    "Überweisung": "Überweisung",
+    "Konsiliarbericht": "Konsiliarbericht",
+    "Sonstiges": "Sonstiges"
+}
 
 # =========================
 # PAGE CONFIGURATION
@@ -221,7 +162,6 @@ h1,h2,h3 { color: #0F4C81; font-family: 'Helvetica', sans-serif; }
 # =========================
 if "registered" not in st.session_state: st.session_state.registered = False
 if "generated_letter" not in st.session_state: st.session_state.generated_letter = ""
-if "mock_mode" not in st.session_state: st.session_state.mock_mode = True
 
 # =========================
 # HEADER & LOGO
@@ -252,10 +192,10 @@ if not st.session_state.registered:
     st.stop()
 
 # =========================
-# LANGUAGE & MOCK MODE
+# LANGUAGE SELECTION
 # =========================
 language = st.selectbox("Language / Sprache", ["English", "Deutsch"], index=1)
-st.checkbox("Enable Mock Mode (offline testing)", value=True, key="mock_mode")
+lang_code = "en" if language.lower() == "english" else "de"
 
 # =========================
 # CLINICAL NOTES INPUT
@@ -264,100 +204,26 @@ st.subheader("Clinical Notes (anonymized only)")
 notes = st.text_area("Enter anonymized medical notes:", height=250, placeholder="E.g., Patient presents with general symptoms...")
 
 # =========================
-# LETTER TYPE
+# LETTER TYPE SELECTION
 # =========================
-letter_type = st.selectbox("Select Letter Type / Brief Typ", [
-    "Entlassungsbericht", "Befundbericht", "Überweisung", "Konsiliarbericht", "Sonstiges"
-])
-
-# =========================
-#m PERFECT PROMPT WITH PLACEHOLDERS
-# =========================
-def generate_prompt(notes, letter_type="Entlassungsbericht", lang="de"):
-    placeholders = {
-        "clinic": "[Praxis/Klinik]",
-        "department": "[Abteilung]",
-        "doctor": "[Oberarzt / behandelnder Arzt]",
-        "date": "[Datum]",
-        "patient_name": "[Patient Name]",
-        "dob": "[Geburtsdatum]",
-        "age": "[Alter]",
-        "sex": "[Geschlecht]"
-    }
-
-    if lang.lower().startswith("en"):
-        return f"""
-You are a highly experienced medical documentation assistant.
-Create a professional {letter_type} with all fields anonymized.
-Do NOT include real patient or doctor data.
-
-Clinic/Practice: {placeholders['clinic']}
-Department: {placeholders['department']}
-Physician: {placeholders['doctor']}
-Date: {placeholders['date']}
-
-Patient Details (anonymized):
-- Name: {placeholders['patient_name']}
-- Date of Birth: {placeholders['dob']}
-- Age: {placeholders['age']}
-- Sex: {placeholders['sex']}
-
-Clinical Notes:
-{notes}
-
-Requirements:
-- The letter must be fully structured, professional, and ready for clinical use.
-- Include all relevant sections automatically depending on the selected letter type.
-- Keep only the placeholders for sensitive data (clinic, doctor, patient, date); everything else must be fully written.
-- Formal, neutral, clinical language; perfect style better than average human physician.
-- Clearly indicate that this document is anonymized and for documentation purposes only.
-- Five letter types supported: Discharge Summary, Diagnostic Report, Referral, Consultation Letter, Others.
-"""
-    else:
-        return f"""
-Du bist ein sehr erfahrener medizinischer Dokumentationsassistent.
-Erstelle einen professionellen {letter_type}, alle Felder anonymisiert.
-Keine echten Patientendaten oder Arztinfos.
-
-Praxis/Klinik: {placeholders['clinic']}
-Abteilung: {placeholders['department']}
-Arzt / Oberarzt: {placeholders['doctor']}
-Datum: {placeholders['date']}
-
-Patientendaten (anonymisiert):
-- Name: {placeholders['patient_name']}
-- Geburtsdatum: {placeholders['dob']}
-- Alter: {placeholders['age']}
-- Geschlecht: {placeholders['sex']}
-
-Klinische Notizen:
-{notes}
-
-Anforderungen:
-- Der Brief muss vollständig strukturiert, professionell und sofort verwendbar sein.
-- Enthält alle relevanten Abschnitte je nach gewähltem Brief-Typ.
-- Nur die Platzhalter für sensible Daten (Praxis, Arzt, Patient, Datum) bleiben; alles andere ist fertig geschrieben.
-- Formelle, neutrale, klinische Sprache; Stil besser als bei einem durchschnittlichen menschlichen Arzt.
-- Deutliche Angabe, dass dieser Brief anonymisiert und nur für Dokumentationszwecke ist.
-- Unterstützt fünf Brief-Typen: Entlassungsbericht, Befundbericht, Überweisung, Konsiliarbericht, Sonstiges.
-"""
-
-# =========================
-# MOCK RESPONSE
-# =========================
-def mock_medical_letter(notes, letter_type="Entlassungsbericht", lang="de"):
-    # Returns the full prompt as mock "letter" for offline testing
-    return generate_prompt(notes, letter_type, lang)
+letter_type_label = st.selectbox("Select Letter Type / Brief Typ", LETTER_TYPE_NAMES[lang_code])
+letter_type = LETTER_TYPE_KEY[letter_type_label]
 
 # =========================
 # OPENAI CLIENT
 # =========================
 api_key = os.getenv("OPENAI_API_KEY")
-if not st.session_state.mock_mode:
-    if not api_key:
-        st.error("API key not found! Set OPENAI_API_KEY as environment variable or enable Mock Mode.")
-        st.stop()
-    client = OpenAI(api_key=api_key)
+if not api_key:
+    st.error("API key not found! Set OPENAI_API_KEY as environment variable.")
+    st.stop()
+client = OpenAI(api_key=api_key)
+
+# =========================
+# PROMPT GENERATION
+# =========================
+def generate_prompt(notes, letter_type, lang_code):
+    template = TEMPLATES[letter_type][lang_code]
+    return template.replace("{{ALTER}}", "[Age]").replace("{{GESCHLECHT}}", "[Sex]").replace("{{AGE}}", "[Age]").replace("{{SEX}}", "[Sex]") + f"\n\nClinical Notes:\n{notes}"
 
 # =========================
 # GENERATE MEDICAL LETTER
@@ -365,16 +231,13 @@ if not st.session_state.mock_mode:
 if st.button("Generate Medical Letter", disabled=not notes.strip()):
     with st.spinner("Generating medical letter..."):
         try:
-            if st.session_state.mock_mode:
-                st.session_state.generated_letter = mock_medical_letter(notes, letter_type, language)
-            else:
-                prompt = generate_prompt(notes, letter_type, language)
-                response = client.chat.completions.create(
-                    model="gpt-4.1",
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=2500
-                )
-                st.session_state.generated_letter = response.choices[0].message.content
+            prompt = generate_prompt(notes, letter_type, lang_code)
+            response = client.chat.completions.create(
+                model="gpt-4.1",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=2500
+            )
+            st.session_state.generated_letter = response.choices[0].message.content
             st.success("Medical letter generated successfully!")
         except Exception as e:
             st.error(f"Error generating letter: {e}")
@@ -384,38 +247,21 @@ if st.button("Generate Medical Letter", disabled=not notes.strip()):
 # =========================
 if st.session_state.generated_letter:
     st.subheader("Generated Medical Letter")
-    st.text_area(
-        label="",
-        value=st.session_state.generated_letter,
-        height=400
-    )
+    st.text_area("", value=st.session_state.generated_letter, height=400)
 
     if st.button("Download PDF"):
         with tempfile.NamedTemporaryFile(suffix=".pdf") as temp:
             c = canvas.Canvas(temp.name, pagesize=A4)
             width, height = A4
 
-            # =========================
-            # PDF HEADER
-            # =========================
             if os.path.exists("logo.png"):
-                c.drawImage(
-                    "logo.png",
-                    40,
-                    height - 70,
-                    width=70,
-                    preserveAspectRatio=True,
-                    mask="auto"
-                )
+                c.drawImage("logo.png", 40, height - 70, width=70, preserveAspectRatio=True, mask="auto")
 
             y = height - 50
             c.setFont("Helvetica-Bold", 14)
             c.drawString(120, y, "Medical Letter Assistant")
             y -= 20
 
-            # =========================
-            # LEGAL / DISCLAIMER
-            # =========================
             c.setFont("Helvetica", 9)
             legal_text = (
                 "Legal Notice / Impressum: Operator: Henk Baldys | Contact: henkbaldys@icloud.com | "
@@ -425,24 +271,13 @@ if st.session_state.generated_letter:
                 "Medical Disclaimer: This tool is for documentation only. "
                 "It does NOT provide medical advice, diagnosis, or treatment."
             )
-
             for line in legal_text.split("\n"):
                 c.drawString(40, y, line)
                 y -= 12
-
             y -= 15
 
-            # =========================
-            # BODY
-            # =========================
             c.setFont("Helvetica", 11)
-            body_lines = simpleSplit(
-                st.session_state.generated_letter,
-                "Helvetica",
-                11,
-                width - 80
-            )
-
+            body_lines = simpleSplit(st.session_state.generated_letter, "Helvetica", 11, width - 80)
             for line in body_lines:
                 c.drawString(40, y, line)
                 y -= 14
@@ -453,21 +288,12 @@ if st.session_state.generated_letter:
 
             c.showPage()
             c.save()
-
-            # =========================
-            # STREAMLIT DOWNLOAD
-            # =========================
             temp.seek(0)
             pdf_bytes = temp.read()
+            st.download_button("Download PDF", data=pdf_bytes, file_name="medical_letter.pdf", mime="application/pdf")
 
-            st.download_button(
-                label="Download PDF",
-                data=pdf_bytes,
-                file_name="medical_letter.pdf",
-                mime="application/pdf"
-            )
 # =========================
-# STREAMLIT FOOTER
+# FOOTER
 # =========================
 st.divider()
 with st.expander("Legal Notice / Impressum"):
